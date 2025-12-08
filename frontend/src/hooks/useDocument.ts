@@ -6,7 +6,7 @@ interface UseDocumentResult {
   documents: Document[];
   loading: boolean;
   fetchDocuments: (courseId: number) => Promise<Document[] | void>;
-  downloadDocument: (courseId: number, documentId: number, fileName?: string) => Promise<boolean>;
+  downloadDocument: (options: { courseId: number; documentId: number; fileName?: string; fileExtension?: string }) => Promise<boolean>;
   uploadDocument: (data: DocumentUploadData) => Promise<boolean>;
   deleteDocument: (courseId: number, documentId: number) => Promise<boolean>;
 }
@@ -31,16 +31,19 @@ export function useDocument(): UseDocumentResult {
   };
 
   const downloadDocument = async (
-    courseId: number,
-    documentId: number,
-    fileName?: string
+    { courseId, documentId, fileName, fileExtension }: { courseId: number; documentId: number; fileName?: string; fileExtension?: string }
   ) => {
     try {
       const blob = await documentService.downloadDocument(courseId, documentId);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName || 'document';
+      // Append extension if missing
+      let finalName = fileName || 'document';
+      if (fileExtension && !finalName.includes('.')) {
+        finalName = `${finalName}.${fileExtension}`;
+      }
+      link.download = finalName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

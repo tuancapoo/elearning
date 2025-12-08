@@ -394,7 +394,7 @@ export function CourseDetail() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => downloadDocument(Number(courseId), doc.id, doc.title, doc.fileExtension)}
+                            onClick={() => downloadDocument({ courseId: Number(courseId), documentId: doc.id, fileName: doc.title, fileExtension: doc.fileExtension })}
                           >
                             <Download className="w-4 h-4" />
                           </Button>

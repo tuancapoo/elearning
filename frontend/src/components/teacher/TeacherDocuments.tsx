@@ -133,7 +133,7 @@ export function TeacherDocuments({ user }: TeacherDocumentsProps) {
     if (doc.fileExtension) {
       filename += `.${doc.fileExtension}`;
     }
-    await downloadDocument(selectedCourseId, doc.id, filename);
+    await downloadDocument({ courseId: selectedCourseId, documentId: doc.id, fileName: filename, fileExtension: doc.fileExtension });
   };
 
   const formatFileSize = (bytes: number): string => {

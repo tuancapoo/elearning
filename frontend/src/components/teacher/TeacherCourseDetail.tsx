@@ -797,7 +797,7 @@ export function TeacherCourseDetail({ user }: TeacherCourseDetailProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => downloadDocument(Number(courseId), doc.id, doc.title, doc.fileExtension)}
+                            onClick={() => downloadDocument({ courseId: Number(courseId), documentId: doc.id, fileName: doc.title, fileExtension: doc.fileExtension })}
                           >
                             <Download className="w-4 h-4 mr-1" />
                             Tải xuống

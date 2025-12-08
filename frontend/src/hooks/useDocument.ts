@@ -1,107 +1,100 @@
-// src/hooks/useDocument.ts
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { documentService, Document, DocumentUploadData } from '../lib/documentService';
 
-/**
- * Hook to fetch all documents for a course
- */
-export const useDocuments = (courseId: number) => {
-  return useQuery({
-    queryKey: ['documents', courseId],
-    queryFn: () => documentService.getAllDocuments(courseId),
-    enabled: !!courseId,
-  });
-};
+interface UseDocumentResult {
+  documents: Document[];
+  loading: boolean;
+  fetchDocuments: (courseId: number) => Promise<Document[] | void>;
+  downloadDocument: (courseId: number, documentId: number, fileName?: string) => Promise<boolean>;
+  uploadDocument: (data: DocumentUploadData) => Promise<boolean>;
+  deleteDocument: (courseId: number, documentId: number) => Promise<boolean>;
+}
 
-/**
- * Hook to fetch document detail
- */
-export const useDocumentDetail = (courseId: number, documentId: number) => {
-  return useQuery({
-    queryKey: ['document', courseId, documentId],
-    queryFn: () => documentService.getDocumentDetail(courseId, documentId),
-    enabled: !!courseId && !!documentId,
-  });
-};
+export function useDocument(): UseDocumentResult {
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(false);
 
-/**
- * Hook to upload document
- */
-export const useUploadDocument = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: DocumentUploadData) => documentService.uploadDocument(data),
-    onSuccess: (_, variables) => {
-      toast.success('Document Uploaded', {
-        description: 'Document has been uploaded successfully',
+  const fetchDocuments = async (courseId: number) => {
+    setLoading(true);
+    try {
+      const data = await documentService.getAllDocuments(courseId);
+      setDocuments(data);
+      return data;
+    } catch (error: any) {
+      toast.error('Tải tài liệu thất bại', {
+        description: error?.message || 'Không thể tải danh sách tài liệu',
       });
-      queryClient.invalidateQueries({ queryKey: ['documents', variables.courseId] });
-    },
-    onError: (error: any) => {
-      const errorMessage = error.message || 'Failed to upload document';
-      toast.error('Upload Failed', {
-        description: errorMessage,
-      });
-    },
-  });
-};
+    } finally {
+      setLoading(false);
+    }
+  };
 
-/**
- * Hook to delete document
- */
-export const useDeleteDocument = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ courseId, documentId }: { courseId: number; documentId: number }) =>
-      documentService.deleteDocument(courseId, documentId),
-    onSuccess: (_, variables) => {
-      toast.success('Document Deleted', {
-        description: 'Document has been deleted successfully',
-      });
-      queryClient.invalidateQueries({ queryKey: ['documents', variables.courseId] });
-    },
-    onError: (error: any) => {
-      const errorMessage = error.message || 'Failed to delete document';
-      toast.error('Delete Failed', {
-        description: errorMessage,
-      });
-    },
-  });
-};
-
-/**
- * Hook to download document
- */
-export const useDownloadDocument = () => {
-  return useMutation({
-    mutationFn: ({ courseId, documentId, fileName }: { courseId: number; documentId: number; fileName: string }) =>
-      documentService.downloadDocument(courseId, documentId).then(blob => ({ blob, fileName })),
-    onSuccess: ({ blob, fileName }) => {
-      // Create download link
+  const downloadDocument = async (
+    courseId: number,
+    documentId: number,
+    fileName?: string
+  ) => {
+    try {
+      const blob = await documentService.downloadDocument(courseId, documentId);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName;
+      link.download = fileName || 'document';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
-      toast.success('Download Started', {
-        description: 'Your document is being downloaded',
+      toast.success('Bắt đầu tải xuống');
+      return true;
+    } catch (error: any) {
+      toast.error('Tải xuống thất bại', {
+        description: error?.message || 'Không thể tải tài liệu',
       });
-    },
-    onError: (error: any) => {
-      const errorMessage = error.message || 'Failed to download document';
-      toast.error('Download Failed', {
-        description: errorMessage,
-      });
-    },
-  });
-};
+      return false;
+    }
+  };
 
-// Alias for compatibility
-export const useDocument = useDocuments;
+  const uploadDocument = async (data: DocumentUploadData) => {
+    setLoading(true);
+    try {
+      await documentService.uploadDocument(data);
+      toast.success('Upload thành công');
+      await fetchDocuments(data.courseId);
+      return true;
+    } catch (error: any) {
+      toast.error('Upload thất bại', {
+        description: error?.message || 'Không thể upload tài liệu',
+      });
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteDocument = async (courseId: number, documentId: number) => {
+    setLoading(true);
+    try {
+      await documentService.deleteDocument(courseId, documentId);
+      setDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
+      toast.success('Đã xóa tài liệu');
+      return true;
+    } catch (error: any) {
+      toast.error('Xóa thất bại', {
+        description: error?.message || 'Không thể xóa tài liệu',
+      });
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    documents,
+    loading,
+    fetchDocuments,
+    downloadDocument,
+    uploadDocument,
+    deleteDocument,
+  };
+}

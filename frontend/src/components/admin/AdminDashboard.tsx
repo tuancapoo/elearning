@@ -15,13 +15,13 @@ export function AdminDashboard() {
   // Lấy tất cả users
   const { data: usersData, isLoading: loadingUsers } = useUsers({ 
     page: 0, 
-    size: 9999 
+    size: 100 
   });
   
   // Lấy tất cả courses
   const { data: coursesData, isLoading: loadingCourses } = useCourses({ 
     page: 0, 
-    size: 9999 
+    size: 10 
   });
 
   // ===========================

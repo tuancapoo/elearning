@@ -26,8 +26,6 @@ import { TeacherCourseDetail } from "../components/teacher/TeacherCourseDetail";
 import { TeacherAssignments } from "../components/teacher/TeacherAssignments";
 import { TeacherDocuments } from "../components/teacher/TeacherDocuments";
 import { TeacherStudents } from "../components/teacher/TeacherStudents";
-import { TeacherReports } from "../components/teacher/TeacherReports";
-import { TeacherDiscussions } from "../components/teacher/TeacherDiscussions";
 
 // Admin pages
 import { AdminDashboard } from "../components/admin/AdminDashboard";
@@ -153,7 +151,7 @@ export function AppRoutes() {
           path="/teacher/courses/:courseId"
           element={
             <ProtectedRoute allowedRoles={["TEACHER"]}>
-              <TeacherCourseDetail />
+              <TeacherCourseDetail user={user} />
             </ProtectedRoute>
           }
         />
@@ -181,23 +179,6 @@ export function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/teacher/discussions"
-          element={
-            <ProtectedRoute allowedRoles={["TEACHER"]}>
-              <TeacherDiscussions user={user} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/teacher/reports"
-          element={
-            <ProtectedRoute allowedRoles={["TEACHER"]}>
-              <TeacherReports user={user} />
-            </ProtectedRoute>
-          }
-        />
-
         {/* Admin routes */}
         <Route
           path="/admin/dashboard"
@@ -237,7 +218,7 @@ export function AppRoutes() {
           path="/profile"
           element={
             <ProtectedRoute>
-              <ProfilePage user={user} />
+              <ProfilePage />
             </ProtectedRoute>
           }
         />

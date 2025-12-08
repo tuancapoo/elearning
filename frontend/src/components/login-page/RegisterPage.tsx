@@ -6,7 +6,7 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { BookOpen, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
-import { useAuth } from '../../context/authContext';
+import { useAuth } from '../../context/AuthContext';
 
 export function RegisterPage() {
   const navigate = useNavigate();

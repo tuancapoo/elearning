@@ -42,10 +42,12 @@ com\example\demo\domain\Notification.class
 com\example\demo\config\SecurityConfiguration.class
 com\example\demo\service\SubmissionService$1.class
 com\example\demo\service\UploadFileService.class
+com\example\demo\controller\SubmissionReport.class
 com\example\demo\domain\CourseEnrollment.class
 com\example\demo\domain\enumeration\Role.class
 com\example\demo\domain\enumeration\Type.class
 com\example\demo\util\errors\GlobalExceptionHandler.class
+com\example\demo\dto\response\report\ProgressLearning.class
 com\example\demo\repository\CourseEnrollmentRepository.class
 com\example\demo\DemoApplication.class
 com\example\demo\domain\UserProfile.class
@@ -56,7 +58,9 @@ com\example\demo\service\AssignmentService$1.class
 com\example\demo\dto\response\ResLoginDTO$UserInsideToken.class
 com\example\demo\repository\DocumentRepository.class
 com\example\demo\repository\UserRepository.class
+com\example\demo\service\ReportService.class
 com\example\demo\domain\enumeration\Status.class
+com\example\demo\dto\request\user\ChangeUserInfoRequest.class
 com\example\demo\domain\Course.class
 com\example\demo\controller\UserController.class
 com\example\demo\controller\AssignmentController.class

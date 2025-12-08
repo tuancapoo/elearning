@@ -55,7 +55,7 @@ export const getStudentCourseProgress = async (courseId: number): Promise<Course
   try {
     const token = localStorage.getItem("token");
     const response = await api.get<ApiResponse<CourseProgressData>>(`/report/student/course/${courseId}/me`, {
-      baseURL: 'n https://elearning-11561.onrender.com',
+      baseURL: 'https://elearning-11561.onrender.com',
       headers: {
         Authorization: `Bearer ${token}`,
       },

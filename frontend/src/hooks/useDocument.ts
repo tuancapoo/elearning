@@ -1,133 +1,262 @@
-// src/hooks/useDocument.ts
-import { useState } from "react";
-import { toast } from "sonner";
-import documentService, {
-  Document,
-  DocumentUploadData,
-} from "../lib/documentService";
+// src/hooks/useEnrollment.ts
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import {
+  enrollInCourse,
+  acceptEnrollment,
+  refuseEnrollment,
+  handleEnrollmentAction,
+  getPendingEnrollments,
+  getCourseEnrollments,
+  EnrollmentResponse,
+  getStudentCourses,
+  getTeacherEnrollments,
+} from '../lib/enrollment';
 
-export const useDocument = () => {
-  const [loading, setLoading] = useState(false);
-  const [documents, setDocuments] = useState<Document[]>([]);
+/**
+ * Hook to fetch pending enrollment requests (Admin only)
+ */
+export const usePendingEnrollments = () => {
+  return useQuery({
+    queryKey: ['pending-enrollments'],
+    queryFn: getPendingEnrollments,
+    refetchInterval: 30000, // Auto refetch every 30 seconds
+    staleTime: 10000, // Consider data stale after 10 seconds
+  });
+};
 
-  /**
-   * Upload a document to a course
-   */
-  const uploadDocument = async (data: DocumentUploadData) => {
-    setLoading(true);
-    try {
-      await documentService.uploadDocument(data);
-      toast.success("Tài liệu đã được tải lên thành công!");
-      return true;
-    } catch (error: any) {
-      console.error("Upload document error:", error);
-      toast.error(
-        error.response?.data?.message || "Không thể tải lên tài liệu"
+
+export const useStudentCourses = () => {
+  return useQuery({
+    queryKey: ['student-courses'],
+    queryFn: getStudentCourses,
+  });
+};
+
+/**
+ * Hook to fetch enrollments by course ID
+ */
+export const useCourseEnrollments = (courseId: number) => {
+  return useQuery({
+    queryKey: ['course-enrollments', courseId],
+    queryFn: () => getCourseEnrollments(courseId),
+    enabled: !!courseId,
+  });
+};
+
+/**
+ * Hook for student to enroll in a course
+ */
+export const useEnrollInCourse = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (enrollmentCode: string) => enrollInCourse(enrollmentCode),
+    onSuccess: (data) => {
+      toast.success('Enrollment Request Sent', {
+        description: data.message || 'Your enrollment request has been submitted successfully',
+      });
+      // Invalidate courses list to show pending status
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['my-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-enrollments'] });
+    },
+    onError: (error: any) => {
+      const errorMessage = error.message || 'Failed to enroll in course';
+      toast.error('Enrollment Failed', {
+        description: errorMessage,
+      });
+    },
+  });
+};
+
+/**
+ * Hook for admin to accept enrollment request
+ */
+export const useAcceptEnrollment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (enrollmentId: number) => acceptEnrollment(enrollmentId),
+    onSuccess: (data, enrollmentId) => {
+      toast.success('Enrollment Accepted', {
+        description: data.message || 'Student has been enrolled successfully',
+      });
+      // Invalidate enrollment lists
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['course-students'] });
+      queryClient.invalidateQueries({ queryKey: ['course-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+    },
+    onError: (error: any) => {
+      const errorMessage = error.message || 'Failed to accept enrollment';
+      toast.error('Action Failed', {
+        description: errorMessage,
+      });
+    },
+  });
+};
+
+/**
+ * Hook for admin to refuse enrollment request
+ */
+export const useRefuseEnrollment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (enrollmentId: number) => refuseEnrollment(enrollmentId),
+    onSuccess: (data, enrollmentId) => {
+      toast.success('Enrollment Refused', {
+        description: data.message || 'Enrollment request has been rejected',
+      });
+      // Invalidate enrollment lists
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-enrollments'] });
+    },
+    onError: (error: any) => {
+      const errorMessage = error.message || 'Failed to refuse enrollment';
+      toast.error('Action Failed', {
+        description: errorMessage,
+      });
+    },
+  });
+};
+
+/**
+ * Hook for admin to handle enrollment action (accept or refuse)
+ */
+export const useHandleEnrollmentAction = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ 
+      enrollmentId, 
+      action 
+    }: { 
+      enrollmentId: number; 
+      action: 'accept' | 'refuse' 
+    }) => handleEnrollmentAction(enrollmentId, action),
+    onSuccess: (data, variables) => {
+      const isAccept = variables.action === 'accept';
+      toast.success(
+        isAccept ? 'Enrollment Accepted' : 'Enrollment Refused',
+        {
+          description: data.message,
+        }
       );
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
+      // Invalidate all related queries
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['course-students'] });
+      queryClient.invalidateQueries({ queryKey: ['course-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+    },
+    onError: (error: any) => {
+      const errorMessage = error.message || 'Failed to process enrollment';
+      toast.error('Action Failed', {
+        description: errorMessage,
+      });
+    },
+  });
+};
 
-  /**
-   * Fetch all documents of a course
-   */
-  const fetchDocuments = async (courseId: number) => {
-    setLoading(true);
-    try {
-      const docs = await documentService.getAllDocuments(courseId);
-      setDocuments(docs);
-      return docs;
-    } catch (error: any) {
-      console.error("Fetch documents error:", error);
-      toast.error(
-        error.response?.data?.message || "Không thể tải danh sách tài liệu"
-      );
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  };
+/**
+ * Hook with optimistic updates for better UX
+ */
+export const useEnrollInCourseOptimistic = () => {
+  const queryClient = useQueryClient();
 
-  /**
-   * Get document detail
-   */
-  const getDocumentDetail = async (courseId: number, documentId: number) => {
-    setLoading(true);
-    try {
-      const doc = await documentService.getDocumentDetail(courseId, documentId);
-      return doc;
-    } catch (error: any) {
-      console.error("Get document detail error:", error);
-      toast.error(
-        error.response?.data?.message || "Không thể tải chi tiết tài liệu"
-      );
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /**
-   * Download a document
-   */
-  const downloadDocument = async (
-    courseId: number,
-    documentId: number,
-    fileName: string,
-    fileExtension?: string
-  ) => {
-    setLoading(true);
-    try {
-      const blob = await documentService.downloadDocument(courseId, documentId);
+  return useMutation({
+    mutationFn: (enrollmentCode: string) => enrollInCourse(enrollmentCode),
+    onMutate: async (enrollmentCode) => {
+      // Show loading toast
+      toast.loading('Sending enrollment request...');
+    },
+    onSuccess: (data) => {
+      toast.dismiss();
+      toast.success('Enrollment Request Sent', {
+        description: data.message || 'Your enrollment request has been submitted successfully',
+      });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      queryClient.invalidateQueries({ queryKey: ['my-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-enrollments'] });
+    },
+    onError: (error: any) => {
+      toast.dismiss();
+      const errorMessage = error.message || 'Failed to enroll in course';
       
-      // Add file extension if provided and not already present
-      let finalFileName = fileName;
-      if (fileExtension && !fileName.endsWith(`.${fileExtension}`)) {
-        finalFileName = `${fileName}.${fileExtension}`;
+      // Handle specific error cases
+      if (errorMessage.includes('already enrolled')) {
+        toast.warning('Already Enrolled', {
+          description: 'You have already enrolled in this course',
+        });
+      } else if (errorMessage.includes('not found')) {
+        toast.error('Invalid Code', {
+          description: 'The enrollment code is invalid or expired',
+        });
+      } else {
+        toast.error('Enrollment Failed', {
+          description: errorMessage,
+        });
       }
-      
-      documentService.triggerDownload(blob, finalFileName);
-      toast.success("Tải xuống thành công!");
-      return true;
-    } catch (error: any) {
-      console.error("Download document error:", error);
-      toast.error(
-        error.response?.data?.message || "Không thể tải xuống tài liệu"
+    },
+  });
+};
+
+/**
+ * Batch action hook for admin to process multiple enrollments
+ */
+export const useBatchEnrollmentAction = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      enrollmentIds, 
+      action 
+    }: { 
+      enrollmentIds: number[]; 
+      action: 'accept' | 'refuse' 
+    }) => {
+      const promises = enrollmentIds.map(id => 
+        handleEnrollmentAction(id, action)
       );
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
+      return Promise.all(promises);
+    },
+    onSuccess: (data, variables) => {
+      const count = variables.enrollmentIds.length;
+      const isAccept = variables.action === 'accept';
+      
+      toast.success(
+        `${count} ${isAccept ? 'Accepted' : 'Refused'}`,
+        {
+          description: `Successfully processed ${count} enrollment request(s)`,
+        }
+      );
+      
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['course-students'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+    },
+    onError: (error: any) => {
+      toast.error('Batch Action Failed', {
+        description: error.message || 'Failed to process some enrollment requests',
+      });
+    },
+  });
+};
 
-  /**
-   * Delete a document
-   */
-  const deleteDocument = async (courseId: number, documentId: number) => {
-    setLoading(true);
-    try {
-      await documentService.deleteDocument(courseId, documentId);
-      setDocuments(documents.filter((doc) => doc.id !== documentId));
-      toast.success("Tài liệu đã được xóa!");
-      return true;
-    } catch (error: any) {
-      console.error("Delete document error:", error);
-      toast.error(error.response?.data?.message || "Không thể xóa tài liệu");
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  return {
-    loading,
-    documents,
-    uploadDocument,
-    fetchDocuments,
-    getDocumentDetail,
-    downloadDocument,
-    deleteDocument,
-  };
+/**
+ * Hook to fetch all enrollments for teacher
+ */
+export const useTeacherEnrollments = () => {
+  return useQuery({
+    queryKey: ['teacher-enrollments'],
+    queryFn: getTeacherEnrollments,
+    staleTime: 30000, // Cache 30 seconds
+    refetchInterval: 60000, // Auto refetch every 60 seconds
+  });
 };

@@ -35,7 +35,7 @@ export const getStudentReport = async (): Promise<StudentReportData> => {
     // Sử dụng endpoint đúng mà không có /api prefix
     const token = localStorage.getItem("token");
     const response = await api.get<ApiResponse<StudentReportData>>('/report/student/me', {
-      baseURL: 'http://localhost:8080', // Override baseURL để bỏ /api
+      baseURL: 'https://elearning-11561.onrender.com', // Override baseURL để bỏ /api
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -55,7 +55,7 @@ export const getStudentCourseProgress = async (courseId: number): Promise<Course
   try {
     const token = localStorage.getItem("token");
     const response = await api.get<ApiResponse<CourseProgressData>>(`/report/student/course/${courseId}/me`, {
-      baseURL: 'http://localhost:8080',
+      baseURL: 'n https://elearning-11561.onrender.com',
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -68,4 +68,3 @@ export const getStudentCourseProgress = async (courseId: number): Promise<Course
     throw error;
   }
 };
-

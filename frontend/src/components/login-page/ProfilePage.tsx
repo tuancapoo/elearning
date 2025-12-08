@@ -1,649 +1,392 @@
 import { useState, useRef } from 'react';
-import { QuizAssignmentCreator } from './QuizAssignmentCreator';
-import {
-  useAssignmentsByCourse,
-  useCreateAssignment,
-  useDeleteAssignment,
-  useUpdateAssignment,
-  assignmentKeys,
-  fetchAssignmentsByCourse,
-  useAssignmentDetail,
-} from '../../hooks/useAssignment';
-import submissionService, { SubmissionListItemDTO } from '../../lib/submissionService';
-import { useCourses } from '../../hooks/useCourse';
-import { useSubmissionsByAssignment } from '../../hooks/useSubmission';
-import { CreateAssignmentDTO, StatusAssignment } from '../../lib/assignmentService';
-import { DEMO_SUBMISSIONS, Submission } from '../../lib/mockData';
-import { User } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Badge } from '../ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Search, Plus, Edit, Trash2, Eye, Loader2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../ui/dialog';
 import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Camera, Save, Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { toast } from 'sonner';
-import { useQueries } from '@tanstack/react-query';
+import userService from '../../lib/userService';
+import api from '../../lib/axios';
 
-interface TeacherAssignmentsProps {
-  user: User;
-}
-
-export function TeacherAssignments({ user }: TeacherAssignmentsProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [gradeDialogOpen, setGradeDialogOpen] = useState(false);
-  const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
-  const [selectedAssignment, setSelectedAssignment] = useState<number | null>(null);
-  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
-  const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingAssignment, setEditingAssignment] = useState<any>(null);
-  const [gradeData, setGradeData] = useState({ score: '', feedback: '' });
-
-  const quizSubmitRef = useRef<(() => void) | null>(null);
-
-  // ===========================
-  // API HOOKS
-  // ===========================
-const { data: submissions, isLoading: isLoadingSubmissions } = useSubmissionsByAssignment(
-  selectedAssignment || 0,
-  gradeDialogOpen
-);
-  const { data: assignmentDetail, isLoading: isLoadingDetail } = useAssignmentDetail(
-    editingAssignmentId || 0,
-    editingAssignmentId !== null
-  );
-
-  const { data: coursesData, isLoading: isLoadingCourses, error: coursesError } = useCourses({
-    size: 100,
-  });
-
-  const myCourseIds = coursesData?.result
-    .filter(course => course.teacher?.userId === user.userId)
-    .map(course => course.id) || [];
-
-  const courseIds = myCourseIds;
-
-  const assignmentQueries = useQueries({
-    queries: courseIds.map(courseId => ({
-      queryKey: assignmentKeys.list(courseId, { size: 100 }),
-      queryFn: () => fetchAssignmentsByCourse(courseId, { size: 100 }),
-      enabled: courseId > 0,
-      staleTime: 1000 * 60 * 3
-    }))
-  });
-
-  const createAssignmentMutation = useCreateAssignment();
-  const updateAssignmentMutation = useUpdateAssignment();
-  const deleteAssignmentMutation = useDeleteAssignment();
+export function ProfilePage() {
+  const { user, updateUser } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar || '');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // ===========================
-  // DATA PROCESSING
-  // ===========================
+  const [formData, setFormData] = useState({
+    name: user?.name || '',
+    phone: user?.phone || '',
+  });
+  
+  const [passwordData, setPasswordData] = useState({
+    newPassword: '',
+    confirmPassword: ''
+  });
+  
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-  const allAssignmentsFromAPI = assignmentQueries
-    .filter(q => q.data?.result)
-    .flatMap((q, index) => {
-      const currentCourseId = courseIds[index];
-      const course = coursesData?.result.find(c => c.id === currentCourseId);
-      return q.data!.result.map((assignment: any) => ({
-        ...assignment,
-        courseId: currentCourseId,
-        courseName: course?.name || 'Unknown',
-      }));
-    });
-
-  const isLoadingAssignments = assignmentQueries.some(q => q.isLoading);
-  const hasErrorAssignments = assignmentQueries.some(q => q.error);
-
-  const isLoading = isLoadingCourses || isLoadingAssignments;
-  const hasError = coursesError || hasErrorAssignments;
-
-  const filteredAssignments = allAssignmentsFromAPI.filter(assignment =>
-    assignment.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    assignment.courseName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // ===========================
-  // HANDLERS
-  // ===========================
-
-  // ⭐ FIX 1: Lấy status từ data.status thay vì hardcode
-  const handleCreateQuiz = (data: any) => {
-    console.log('Creating quiz with data:', data);
-
-    const payload: CreateAssignmentDTO = {
-      courseId: parseInt(data.courseId),
-      title: data.title,
-      description: data.description || '',
-      dueDate: data.dueDate,
-      status: data.status as StatusAssignment, // ⭐ LẤY TỪ FORM
-      question: data.question.map((q: any) => ({
-        question: q.question,
-        answerA: q.answerA,
-        answerB: q.answerB,
-        answerC: q.answerC,
-        answerD: q.answerD,
-        correctAnswer: q.correctAnswer,
-      })),
-    };
-
-    createAssignmentMutation.mutate(payload, {
-      onSuccess: () => {
-        setCreateDialogOpen(false);
-        toast.success('Tạo bài kiểm tra thành công!');
-      },
-    });
-  };
-
-  const handleEditClick = (assignment: any) => {
-    console.log('🔍 Current user ID:', user.userId);
-    console.log('🔍 Assignment to edit:', assignment);
-    console.log('🔍 Assignment ID:', assignment.id);
-    console.log('🔍 Course ID:', assignment.courseId);
-    
-    const course = coursesData?.result.find(c => c.id === assignment.courseId);
-    console.log('🔍 Course info:', course);
-    console.log('🔍 Course teacher ID:', course?.teacher?.userId);
-    
-    setEditingAssignmentId(assignment.id);
-    setEditDialogOpen(true);
-  };
-
-  // ⭐ FIX 2: Lấy status từ data.status thay vì hardcode DRAFT
-  const handleUpdateQuiz = (data: any) => {
-    if (!editingAssignmentId || !assignmentDetail) {
-      console.error('❌ Missing editingAssignmentId or assignmentDetail');
-      toast.error('Có lỗi xảy ra, vui lòng thử lại');
-      return;
-    }
-
-    const courseId = allAssignmentsFromAPI.find(a => a.id === editingAssignmentId)?.courseId;
-    
-    if (!courseId) {
-      console.error('❌ Cannot find courseId for assignment:', editingAssignmentId);
-      toast.error('Không tìm thấy thông tin lớp học');
-      return;
-    }
-
-    const finalCourseId = Number(courseId);
-    const payload: CreateAssignmentDTO = {
-      courseId: finalCourseId,
-      title: data.title,
-      description: data.description || '',
-      dueDate: data.dueDate,
-      status: data.status as StatusAssignment,
-      question: data.question.map((q: any) => ({
-        question: q.question,
-        answerA: q.answerA,
-        answerB: q.answerB,
-        answerC: q.answerC,
-        answerD: q.answerD,
-        correctAnswer: q.correctAnswer,
-      })),
-    };
-
-    console.log('📤 Updating assignment:', editingAssignmentId);
-    console.log('📤 Payload:', payload);
-
-    updateAssignmentMutation.mutate(
-      { assignmentId: editingAssignmentId, assignmentData: payload },
-      {
-        onSuccess: () => {
-          setEditDialogOpen(false);
-          setEditingAssignmentId(null);
-          toast.success('Cập nhật bài kiểm tra thành công!');
-        },
-      }
-    );
-  };
-
-  const handleDeleteAssignment = (assignmentId: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa bài tập này?')) return;
-    deleteAssignmentMutation.mutate(assignmentId);
-  };
-
-  const getSubmissionStats = (assignmentId: number) => {
-    const submissions = DEMO_SUBMISSIONS.filter(s => s.assignmentId === assignmentId.toString());
-    const graded = submissions.filter(s => s.status === 'graded').length;
-    return { total: submissions.length, graded };
-  };
-
-  const handleViewSubmissions = (assignmentId: number) => {
-    setSelectedAssignment(assignmentId);
-    setGradeDialogOpen(true);
-  };
-
-  const assignmentSubmissions = selectedAssignment
-    ? DEMO_SUBMISSIONS.filter(s => s.assignmentId === selectedAssignment.toString())
-    : [];
-
-  const handleOpenSubmission = (submission: any) => {
-    setSelectedSubmission(submission);
-    setGradeData({
-      score: submission.score?.toString() || '',
-      feedback: submission.feedback || '',
-    });
-    setSubmissionDialogOpen(true);
-  };
-
-  const handleGradeSubmission = () => {
-    if (!gradeData.score) {
-      toast.error('Vui lòng nhập điểm số');
-      return;
-    }
-
-    const score = parseFloat(gradeData.score);
-    const assignment = allAssignmentsFromAPI.find(a => a.id === selectedAssignment);
-
-    const maxScore = 100;
-    if (score < 0 || score > maxScore) {
-      toast.error(`Điểm phải từ 0 đến ${maxScore}`);
-      return;
-    }
-
-    if (selectedSubmission) {
-      setSubmissionDialogOpen(false);
-      setGradeData({ score: '', feedback: '' });
-      setSelectedSubmission(null);
-      toast.success(`Đã chấm điểm cho ${selectedSubmission.studentName}!`);
-    }
-  };
-
-  // ===========================
-  // RENDER
-  // ===========================
-
-  if (hasError) {
+  if (!user) {
     return (
-      <div className="h-[calc(100vh-100px)] flex items-center justify-center">
-        <Card className="p-6">
-          <CardContent>
-            <p className="text-destructive">
-              {coursesError ? 'Có lỗi xảy ra khi tải danh sách lớp học' : 'Có lỗi xảy ra khi tải dữ liệu bài tập'}
-            </p>
-            <Button
-              onClick={() => {
-                if (coursesError) {
-                  window.location.reload();
-                } else {
-                  assignmentQueries.forEach(q => q.refetch());
-                }
-              }}
-              className="mt-4"
-            >
-              Thử lại
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
   }
 
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getRoleLabel = (role: string) => {
+    const labels: { [key: string]: string } = {
+      ADMIN: 'Quản trị viên',
+      TEACHER: 'Giảng viên',
+      STUDENT: 'Sinh viên'
+    };
+    return labels[role] || role;
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+      toast.error('Vui lòng chọn file ảnh');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB
+      toast.error('Kích thước ảnh không được vượt quá 5MB');
+      return;
+    }
+
+    try {
+      setIsUploadingAvatar(true);
+      
+      // OPTION 1: Upload to server (nếu backend có endpoint)
+      // Uncomment này nếu bạn có API upload avatar
+      /*
+      const formData = new FormData();
+      formData.append('avatar', file);
+      
+      const response = await api.post('/users/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      const newAvatarUrl = response.data.data.avatarUrl;
+      setAvatarUrl(newAvatarUrl);
+      updateUser({ avatar: newAvatarUrl });
+      */
+      
+      // OPTION 2: Convert to base64 (temporary - for now)
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const newAvatarUrl = event.target?.result as string;
+        setAvatarUrl(newAvatarUrl);
+        updateUser({ avatar: newAvatarUrl });
+        toast.success('Ảnh đại diện đã được cập nhật');
+      };
+      reader.readAsDataURL(file);
+      
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Không thể tải ảnh lên');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!formData.name.trim()) {
+      toast.error('Vui lòng nhập họ và tên');
+      return;
+    }
+    
+    try {
+      setIsSavingProfile(true);
+      
+      // ✅ Gọi API PUT /users/changeInfo
+      await userService.updateUserInfo(formData.name, formData.phone);
+      
+      // ✅ Cập nhật AuthContext
+      updateUser({ 
+        name: formData.name, 
+        phone: formData.phone 
+      });
+      
+      setIsEditing(false);
+      toast.success('Thông tin cá nhân đã được lưu thành công!');
+      
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Không thể cập nhật thông tin';
+      toast.error(message);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    // Validation
+    if (!passwordData.newPassword || !passwordData.confirmPassword) {
+      toast.error('Vui lòng điền đầy đủ thông tin');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('Mật khẩu xác nhận không khớp');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast.error('Mật khẩu mới phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    try {
+      setIsChangingPassword(true);
+      
+      // ✅ Gọi API POST /auth/reset-password
+      await api.post('/auth/reset-password', null, {
+        params: { newPassword: passwordData.newPassword }
+      });
+      
+      // Clear form
+      setPasswordData({ 
+        newPassword: '', 
+        confirmPassword: '' 
+      });
+      
+      toast.success('Mật khẩu đã được thay đổi thành công!');
+      
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Không thể đổi mật khẩu';
+      toast.error(message);
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setFormData({
+      name: user.name,
+      phone: user.phone || '',
+    });
+    setIsEditing(false);
+  };
+
   return (
-    <div className="h-[calc(100vh-100px)] flex flex-col overflow-hidden space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1>Quản lý bài tập</h1>
-          <p className="text-muted-foreground">Tạo và quản lý bài tập cho lớp học</p>
-        </div>
-
-        {/* CREATE DIALOG */}
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              className="bg-primary hover:bg-primary/90"
-              disabled={isLoadingCourses || myCourseIds.length === 0}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Tạo bài kiểm tra trắc nghiệm
-            </Button>
-          </DialogTrigger>
-
-          <DialogContent
-            className="max-w-3xl flex flex-col p-0"
-            style={{ height: '85vh', maxHeight: '85vh' }}
-          >
-            <DialogHeader className="px-6 pt-6">
-              <DialogTitle>Tạo bài kiểm tra trắc nghiệm</DialogTitle>
-              <DialogDescription>
-                Tạo bài kiểm tra với câu hỏi trắc nghiệm 4 đáp án
-              </DialogDescription>
-            </DialogHeader>
-
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px', minHeight: 0 }}>
-              <QuizAssignmentCreator
-                key="create-new"
-                teacherId={user.userId}
-                onSubmit={handleCreateQuiz}
-                onCancel={() => setCreateDialogOpen(false)}
-                submitRef={quizSubmitRef}
-              />
-            </div>
-
-            <DialogFooter style={{ borderTop: '1px solid #e5e7eb', padding: '16px 24px', flexShrink: 0 }}>
-              <Button
-                variant="outline"
-                onClick={() => setCreateDialogOpen(false)}
-                disabled={createAssignmentMutation.isPending}
-              >
-                Hủy
-              </Button>
-              <Button
-                onClick={() => quizSubmitRef.current?.()}
-                className="bg-primary"
-                disabled={createAssignmentMutation.isPending}
-              >
-                {createAssignmentMutation.isPending && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                )}
-                Tạo bài kiểm tra
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Hồ sơ cá nhân</h1>
+        <p className="text-muted-foreground">Quản lý thông tin cá nhân và cài đặt tài khoản</p>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Tìm kiếm bài tập..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      {/* Assignments Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            Danh sách bài tập ({filteredAssignments.length})
-            {isLoading && (
-              <Loader2 className="w-4 h-4 ml-2 inline-block animate-spin" />
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center py-12">
-              <Loader2 className="w-8 h-8 mx-auto animate-spin text-primary" />
-              <p className="mt-4 text-muted-foreground">Đang tải danh sách bài tập...</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tiêu đề</TableHead>
-                  <TableHead>Lớp học</TableHead>
-                  <TableHead>Hạn nộp</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAssignments.map(assignment => {
-                  const stats = getSubmissionStats(assignment.id);
-                  const dueDate = new Date(assignment.dueDate);
-                  const isOverdue = dueDate < new Date();
-
-                  return (
-                    <TableRow key={assignment.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {assignment.title}
-                          <Badge variant="outline" className="text-xs">
-                            Quiz
-                          </Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell>{assignment.courseName}</TableCell>
-                      <TableCell>
-                        <span className={isOverdue ? 'text-red-600' : ''}>
-                          {dueDate.toLocaleDateString('vi-VN')}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={assignment.status === 'PUBLISHED' ? 'default' : 'secondary'}>
-                          {assignment.status === 'PUBLISHED' ? 'Đang mở' : 'Bản nháp'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleViewSubmissions(assignment.id)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            onClick={() => handleEditClick(assignment)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive"
-                            onClick={() => handleDeleteAssignment(assignment.id)}
-                            disabled={deleteAssignmentMutation.isPending}
-                          >
-                            {deleteAssignmentMutation.isPending ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-
-          {!isLoading && filteredAssignments.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              Không tìm thấy bài tập nào
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Grade Dialog */}
-            <Dialog open={gradeDialogOpen} onOpenChange={setGradeDialogOpen}>
-  <DialogContent className="max-w-4xl h-[80vh] flex flex-col overflow-hidden">
-    <DialogHeader>
-      <DialogTitle>Danh sách bài nộp</DialogTitle>
-      <DialogDescription>
-        Sinh viên đã nộp bài và điểm số
-      </DialogDescription>
-    </DialogHeader>
-
-    <div className="py-4 overflow-y-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Sinh viên</TableHead>
-            <TableHead>Thời gian nộp</TableHead>
-            <TableHead>Điểm</TableHead>
-            <TableHead>Trạng thái</TableHead>
-          </TableRow>
-        </TableHeader>
-
-        <TableBody>
-          {submissions && submissions.length > 0 ? (
-            submissions.map((s: SubmissionListItemDTO) => (
-              <TableRow key={s.submissionId}>
-                <TableCell>{s.studentName}</TableCell>
-                <TableCell>{new Date(s.submittedAt).toLocaleString('vi-VN')}</TableCell>
-                <TableCell>{s.grade !== null ? s.grade : '-'}</TableCell>
-                <TableCell>
-                  <Badge variant={s.grade !== null ? 'default' : 'secondary'}>
-                    {s.grade !== null ? 'Đã chấm' : 'Chưa chấm'}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                Chưa có bài nộp nào
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  </DialogContent>
-</Dialog>
-      {/* Submission Dialog */}
-      <Dialog open={submissionDialogOpen} onOpenChange={setSubmissionDialogOpen}>
-        <DialogContent className="max-w-4xl h-[80vh] max-h-[80vh!important] flex flex-col overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>Chi tiết bài làm Quiz</DialogTitle>
-            <DialogDescription>
-              Xem chi tiết bài làm của {selectedSubmission?.studentName}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 overflow-y-auto">
-            <div className="space-y-4">
-              {selectedSubmission && (
-                <div className="space-y-3">
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <Label className="text-sm font-semibold">Thông tin bài làm</Label>
-                    <div className="mt-2 space-y-1 text-sm">
-                      <p>Tổng câu hỏi: {(selectedSubmission as any).totalQuestions || 'N/A'}</p>
-                      <p>Điểm số: {selectedSubmission.score || 'Chưa chấm'}/100</p>
-                      <p>Trạng thái: {selectedSubmission.status === 'graded' ? 'Đã chấm' : 'Chưa chấm'}</p>
-                    </div>
-                  </div>
-
-                  {(selectedSubmission as any).answers && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold">Đáp án đã chọn</Label>
-                      {(selectedSubmission as any).answers.map((answer: any, idx: number) => (
-                        <div key={idx} className="p-2 bg-gray-50 rounded text-sm">
-                          Câu {idx + 1}: <span className="font-semibold">{answer.selectedAnswer}</span>
-                        </div>
-                      ))}
-                    </div>
+      <div className="grid md:grid-cols-3 gap-6">
+        {/* Avatar Section */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center">
+              <div className="relative">
+                <Avatar className="w-32 h-32">
+                  {avatarUrl && <AvatarImage src={avatarUrl} alt={user.name} />}
+                  <AvatarFallback className="bg-primary text-white text-3xl">
+                    {getInitials(user.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                  disabled={isUploadingAvatar}
+                />
+                <Button 
+                  size="icon" 
+                  className="absolute bottom-0 right-0 rounded-full"
+                  variant="secondary"
+                  onClick={handleAvatarClick}
+                  disabled={isUploadingAvatar}
+                >
+                  {isUploadingAvatar ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4" />
                   )}
+                </Button>
+              </div>
+              <h2 className="mt-4 text-xl font-semibold">{user.name}</h2>
+              <p className="text-muted-foreground">{getRoleLabel(user.role)}</p>
+              <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
+              
+              {/* ✅ Hiển thị studentId hoặc teacherId nếu có */}
+              {user.studentId && (
+                <p className="text-sm text-muted-foreground mt-1">Mã SV: {user.studentId}</p>
+              )}
+              {user.teacherId && (
+                <p className="text-sm text-muted-foreground mt-1">Mã GV: {user.teacherId}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-                  <div className="space-y-2">
-                    <Label>Điểm số *</Label>
-                    <Input
-                      type="number"
-                      placeholder="Nhập điểm số..."
-                      value={gradeData.score}
-                      onChange={(e) => setGradeData({ ...gradeData, score: e.target.value })}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Điểm tối đa: 100
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Phản hồi</Label>
-                    <Textarea
-                      placeholder="Nhập nhận xét và phản hồi cho sinh viên..."
-                      value={gradeData.feedback}
-                      onChange={(e) => setGradeData({ ...gradeData, feedback: e.target.value })}
-                      rows={4}
-                    />
-                  </div>
+        {/* Main Info */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Thông tin cá nhân</CardTitle>
+              {!isEditing ? (
+                <Button onClick={() => setIsEditing(true)} variant="outline">
+                  Chỉnh sửa
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleCancelEdit} 
+                    variant="outline"
+                    disabled={isSavingProfile}
+                  >
+                    Hủy
+                  </Button>
+                  <Button 
+                    onClick={handleSaveProfile} 
+                    className="bg-primary"
+                    disabled={isSavingProfile}
+                  >
+                    {isSavingProfile ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Lưu
+                  </Button>
                 </div>
               )}
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSubmissionDialogOpen(false)}>
-              Đóng
-            </Button>
-            <Button onClick={handleGradeSubmission} className="bg-primary">
-              Chấm điểm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="info">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="info">Thông tin</TabsTrigger>
+                <TabsTrigger value="security">Bảo mật</TabsTrigger>
+              </TabsList>
 
-      {/* EDIT ASSIGNMENT DIALOG */}
-      <Dialog 
-        open={editDialogOpen} 
-        onOpenChange={(open) => {
-          setEditDialogOpen(open);
-          if (!open) {
-            setEditingAssignmentId(null);
-          }
-        }}
-      >
-        <DialogContent
-          className="max-w-3xl flex flex-col p-0"
-          style={{ height: "85vh", maxHeight: "85vh" }}
-        >
-          <DialogHeader className="px-6 pt-6">
-            <DialogTitle>Chỉnh sửa bài kiểm tra</DialogTitle>
-            <DialogDescription>
-              Thay đổi thông tin và câu hỏi của bài kiểm tra
-            </DialogDescription>
-          </DialogHeader>
+              <TabsContent value="info" className="space-y-4 mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Họ và tên *</Label>
+                    {isEditing ? (
+                      <Input
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Nhập họ và tên"
+                      />
+                    ) : (
+                      <p className="text-sm py-2">{user.name}</p>
+                    )}
+                  </div>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "0 24px", minHeight: 0 }}>
-            {isLoadingDetail ? (
-              <div className="text-center py-12">
-                <Loader2 className="w-8 h-8 mx-auto animate-spin text-primary" />
-                <p className="mt-4 text-muted-foreground">Đang tải chi tiết bài kiểm tra...</p>
-              </div>
-            ) : assignmentDetail ? (
-              <QuizAssignmentCreator
-                key={assignmentDetail.id}
-                teacherId={user.userId}
-                initialData={{
-                  ...assignmentDetail,
-                  courseId: allAssignmentsFromAPI.find(a => a.id === assignmentDetail.id)?.courseId
-                }}
-                onSubmit={handleUpdateQuiz}
-                onCancel={() => {
-                  setEditDialogOpen(false);
-                  setEditingAssignmentId(null);
-                }}
-                submitRef={quizSubmitRef}
-              />
-            ) : null}
-          </div>
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <p className="text-sm py-2 text-muted-foreground">{user.email}</p>
+                  </div>
 
-          <DialogFooter style={{ borderTop: "1px solid #e5e7eb", padding: "16px 24px" }}>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setEditDialogOpen(false);
-                setEditingAssignmentId(null);
-              }}
-              disabled={updateAssignmentMutation.isPending}
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={() => quizSubmitRef.current?.()}
-              className="bg-primary"
-              disabled={updateAssignmentMutation.isPending || isLoadingDetail}
-            >
-              {updateAssignmentMutation.isPending && (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              )}
-              Cập nhật bài kiểm tra
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                  <div className="space-y-2">
+                    <Label>Số điện thoại</Label>
+                    {isEditing ? (
+                      <Input
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        placeholder="Nhập số điện thoại"
+                      />
+                    ) : (
+                      <p className="text-sm py-2">{user.phone || 'Chưa cập nhật'}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Vai trò</Label>
+                    <p className="text-sm py-2">{getRoleLabel(user.role)}</p>
+                  </div>
+
+                  {/* ✅ Hiển thị studentId nếu là STUDENT */}
+                  {user.studentId && (
+                    <div className="space-y-2">
+                      <Label>Mã sinh viên</Label>
+                      <p className="text-sm py-2">{user.studentId}</p>
+                    </div>
+                  )}
+
+                  {/* ✅ Hiển thị teacherId nếu là TEACHER */}
+                  {user.teacherId && (
+                    <div className="space-y-2">
+                      <Label>Mã giảng viên</Label>
+                      <p className="text-sm py-2">{user.teacherId}</p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="security" className="space-y-4 mt-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Mật khẩu mới *</Label>
+                    <Input
+                      type="password"
+                      placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData({ 
+                        ...passwordData, 
+                        newPassword: e.target.value 
+                      })}
+                      disabled={isChangingPassword}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Xác nhận mật khẩu mới *</Label>
+                    <Input
+                      type="password"
+                      placeholder="Nhập lại mật khẩu mới"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData({ 
+                        ...passwordData, 
+                        confirmPassword: e.target.value 
+                      })}
+                      disabled={isChangingPassword}
+                    />
+                  </div>
+
+                  <Button 
+                    onClick={handleChangePassword} 
+                    className="bg-primary" 
+                    disabled={isChangingPassword}
+                  >
+                    {isChangingPassword ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Đang xử lý...
+                      </>
+                    ) : (
+                      'Đổi mật khẩu'
+                    )}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -91,6 +91,7 @@ export function AdminDashboard() {
   ], [stats]);
 
   const activityData = useMemo(() => [
+
     { month: 'T7', users: 65, courses: 12 },
     { month: 'T8', users: 75, courses: 15 },
     { month: 'T9', users: 85, courses: 18 },
@@ -137,6 +138,7 @@ export function AdminDashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Tổng quan hệ thống</h1>
+
         <p className="text-muted-foreground mt-1">Quản trị BK EduClass</p>
       </div>
 
@@ -162,6 +164,7 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{stats.totalCourses}</div>
+
             <p className="text-xs text-muted-foreground mt-1">Đang hoạt động</p>
           </CardContent>
         </Card>
@@ -173,6 +176,7 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{stats.totalAssignments}</div>
+
             <p className="text-xs text-muted-foreground mt-1">Tổng số bài tập</p>
           </CardContent>
         </Card>
@@ -184,6 +188,7 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">Active</div>
+
             <p className="text-xs text-muted-foreground mt-1">Hệ thống ổn định</p>
           </CardContent>
         </Card>
@@ -203,6 +208,7 @@ export function AdminDashboard() {
                 <YAxis />
                 <Tooltip />
                 <Bar dataKey="value" fill="#2F80ED" radius={[8, 8, 0, 0]} />
+
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -235,12 +241,12 @@ export function AdminDashboard() {
                   strokeWidth={2}
                   dot={{ r: 4 }}
                 />
+
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
-
       {/* Three columns section */}
       <div className="grid md:grid-cols-3 gap-6">
         

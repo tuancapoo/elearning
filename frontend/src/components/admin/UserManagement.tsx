@@ -12,7 +12,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, useLockUser, useUnlockUser } from '../../hooks/useUsers';
 import { Role, User, CreateUserRequest, UpdateUserRequest } from '../../lib/user.types';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-
 export function UserManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<Role | 'all'>('all');
@@ -24,6 +23,7 @@ export function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize, setPageSize] = useState(20); 
+
   const [formData, setFormData] = useState<CreateUserRequest>({
     name: '',
     email: '',
@@ -72,6 +72,7 @@ export function UserManagement() {
       [Role.ADMIN]: { variant: 'destructive', label: 'Quản trị viên', color: 'bg-red-100 text-red-800' },
       [Role.TEACHER]: { variant: 'default', label: 'Giảng viên', color: 'bg-blue-100 text-blue-800' },
       [Role.STUDENT]: { variant: 'secondary', label: 'Sinh viên', color: 'bg-green-100 text-green-800' }
+
     };
     return variants[role];
   };
@@ -80,6 +81,7 @@ export function UserManagement() {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
+
 
   const handleCreateUser = async () => {
     if (!formData.name || !formData.email || !formData.password) {
@@ -108,6 +110,7 @@ export function UserManagement() {
       major: formData.major,
       year: formData.year,
       className: formData.className
+
     };
 
     try {
@@ -130,6 +133,7 @@ export function UserManagement() {
         setSelectedUser(null);
       }, 500);
       
+
     } catch (error: any) {
       // Error đã được handle trong hook
     }
@@ -151,6 +155,7 @@ export function UserManagement() {
     setSelectedUser(user);
     setViewDialogOpen(true);
   };
+
 
   const openEditDialog = (user: User) => {
     setSelectedUser(user);
@@ -221,6 +226,7 @@ export function UserManagement() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Quản lý người dùng</h1>
+
           <p className="text-muted-foreground">Quản lý tất cả tài khoản trong hệ thống</p>
         </div>
 
@@ -232,6 +238,7 @@ export function UserManagement() {
             </Button>
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl">
+
             <DialogHeader>
               <DialogTitle>Tạo người dùng mới</DialogTitle>
               <DialogDescription>
@@ -239,6 +246,7 @@ export function UserManagement() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4 py-4">
+
               <div className="space-y-2">
                 <Label>Họ và tên *</Label>
                 <Input 
@@ -269,6 +277,7 @@ export function UserManagement() {
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-2">
                 <Label>Số điện thoại</Label>
                 <Input 
@@ -280,6 +289,7 @@ export function UserManagement() {
               
 
               <div className="space-y-2 col-span-2">
+
                 <Label>Mật khẩu *</Label>
                 <Input 
                   type="password" 
@@ -288,6 +298,7 @@ export function UserManagement() {
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground">Mật khẩu phải có ít nhất 6 ký tự</p>
+
               </div>
             </div>
             <DialogFooter>
@@ -361,6 +372,7 @@ export function UserManagement() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Tìm kiếm theo tên hoặc email..."
+
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -372,6 +384,7 @@ export function UserManagement() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất cả vai trò</SelectItem>
+
             <SelectItem value={Role.STUDENT}>Sinh viên</SelectItem>
             <SelectItem value={Role.TEACHER}>Giảng viên</SelectItem>
             <SelectItem value={Role.ADMIN}>Quản trị viên</SelectItem>
@@ -631,6 +644,7 @@ export function UserManagement() {
       {/* Edit User Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl">
+
           <DialogHeader>
             <DialogTitle>Chỉnh sửa thông tin người dùng</DialogTitle>
             <DialogDescription>
@@ -640,6 +654,7 @@ export function UserManagement() {
           <div className="grid grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label>Họ và tên *</Label>
+
               <Input 
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -647,6 +662,7 @@ export function UserManagement() {
             </div>
             <div className="space-y-2">
               <Label>Email *</Label>
+
               <Input 
                 type="email" 
                 value={formData.email}
@@ -673,6 +689,45 @@ export function UserManagement() {
                 </SelectContent>
               </Select>
             </div>
+
+            
+            {/* Role-specific fields */}
+            {selectedUser?.role === Role.STUDENT && (
+              <>
+                <div className="space-y-2">
+                  <Label>Ngành học</Label>
+                  <Input 
+                    value={formData.major}
+                    onChange={(e) => setFormData({ ...formData, major: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Năm học</Label>
+                  <Input 
+                    type="number"
+                    value={formData.year || ''}
+                    onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) || undefined })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Lớp</Label>
+                  <Input 
+                    value={formData.className}
+                    onChange={(e) => setFormData({ ...formData, className: e.target.value })}
+                  />
+                </div>
+              </>
+            )}
+            
+            {selectedUser?.role === Role.TEACHER && (
+              <div className="space-y-2">
+                <Label>Khoa</Label>
+                <Input 
+                  value={formData.department}
+                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setEditDialogOpen(false); resetForm(); }}>

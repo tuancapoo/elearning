@@ -12,3 +12,4 @@ build/
 # editor / system files
 .vscode/
 .DS_Store
+*.properties

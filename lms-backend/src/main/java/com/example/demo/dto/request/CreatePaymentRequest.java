@@ -15,5 +15,5 @@ import java.time.LocalDateTime;
 public class CreatePaymentRequest {
     private String userId;
     private String name;
-    private Double amount;
+    private Long amount;
 }

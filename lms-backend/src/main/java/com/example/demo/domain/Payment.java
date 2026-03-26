@@ -28,7 +28,7 @@ public class Payment {
     private String name;
 
     @Column(name = "amount", nullable = false)
-    private Double amount;
+    private Long amount;
 
     @Column(name = "createdAt", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -38,4 +38,7 @@ public class Payment {
 
     @Column(name = "code", columnDefinition = "TEXT")
     private String code;
+
+    @Column(name = "tnxId", columnDefinition = "TEXT",unique = true)
+    private String tnxId;
 }

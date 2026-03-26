@@ -19,6 +19,7 @@ import { StudentReports } from "../components/student/StudentReports";
 import { StudentDocuments } from "../components/student/StudentDocuments";
 import { StudentDiscussions } from "../components/student/StudentDiscussions";
 import { StudentPayments } from "../components/student/StudentPayments";
+import { StudentPaymentResult } from "../components/student/StudentPaymentResult";
 
 // Teacher pages
 import { TeacherDashboard } from "../components/teacher/TeacherDashboard";
@@ -119,6 +120,14 @@ export function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={["STUDENT"]}>
               <StudentPayments user={user} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment-result"
+          element={
+            <ProtectedRoute allowedRoles={["STUDENT"]}>
+              <StudentPaymentResult />
             </ProtectedRoute>
           }
         />

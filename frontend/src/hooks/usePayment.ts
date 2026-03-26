@@ -1,6 +1,6 @@
 // src/hooks/usePayment.ts
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import paymentService, { PaymentResponse } from "../lib/paymentService";
+import paymentService, { PaymentResponse, VnPayResponse } from "../lib/paymentService";
 import { toast } from "sonner";
 
 // ===========================
@@ -63,6 +63,19 @@ export const useCreatePayment = () => {
     },
     onError: (error: any) => {
       const message = error.response?.data?.message || "Lỗi khi tạo đơn thanh toán";
+      toast.error(message);
+    },
+  });
+};
+
+/**
+ * Hook để tạo URL thanh toán VNPay
+ */
+export const useCreateVnPayUrl = () => {
+  return useMutation<VnPayResponse, any, number>({
+    mutationFn: (paymentId: number) => paymentService.createVnPayPaymentUrl(paymentId),
+    onError: (error: any) => {
+      const message = error.response?.data?.message || "Không tạo được link thanh toán";
       toast.error(message);
     },
   });

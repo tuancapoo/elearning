@@ -59,7 +59,8 @@ public class SecurityConfiguration {
                                 "/swagger-ui.html",
                                 "/swagger-resources/**",
                                 "/webjars/**",
-                                "/users/teacher"
+                                "/users/teacher",
+                                "/api/payment/vnpay_return"
                         ).permitAll()
 
                         .anyRequest().authenticated()

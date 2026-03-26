@@ -5,8 +5,9 @@ import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Search, Calendar, DollarSign, FileText, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { User } from '../../context/AuthContext';
-import { usePayments } from '../../hooks/usePayment';
+import { useCreateVnPayUrl, usePayments } from '../../hooks/usePayment';
 import { toast } from 'sonner';
+import { Button } from '../ui/button';
 import {
   Table,
   TableBody,
@@ -22,7 +23,25 @@ interface StudentPaymentsProps {
 
 export function StudentPayments({ user }: StudentPaymentsProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [payingId, setPayingId] = useState<number | null>(null);
   const { data: payments, isLoading, error } = usePayments();
+  const createVnPayUrlMutation = useCreateVnPayUrl();
+
+  const handlePayNow = async (paymentId: number) => {
+    try {
+      setPayingId(paymentId);
+      const result = await createVnPayUrlMutation.mutateAsync(paymentId);
+      if (!result?.url) {
+        toast.error('Không nhận được link thanh toán từ hệ thống');
+        return;
+      }
+      window.location.href = result.url;
+    } catch (err) {
+      toast.error('Không thể chuyển đến cổng thanh toán VNPay');
+    } finally {
+      setPayingId(null);
+    }
+  };
 
   // Filter dữ liệu theo search query
   const filteredPayments = useMemo(() => {
@@ -183,6 +202,7 @@ export function StudentPayments({ user }: StudentPaymentsProps) {
                     <TableHead className="text-right">Số Tiền</TableHead>
                     <TableHead>Trạng thái</TableHead>
                     <TableHead>Ngày Tạo</TableHead>
+                    <TableHead className="text-right">Hành động</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -214,6 +234,26 @@ export function StudentPayments({ user }: StudentPaymentsProps) {
                           <Calendar className="h-4 w-4" />
                           {formatDate(payment.createdAt)}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {payment.complete ? (
+                          <span className="text-sm text-muted-foreground">Đã hoàn tất</span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => handlePayNow(payment.id)}
+                            disabled={payingId === payment.id}
+                          >
+                            {payingId === payment.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Đang chuyển...
+                              </>
+                            ) : (
+                              'Thanh toán'
+                            )}
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

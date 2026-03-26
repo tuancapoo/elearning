@@ -11,6 +11,12 @@ export interface PaymentResponse {
   createdAt: string;
 }
 
+export interface VnPayResponse {
+  status: string;
+  message: string;
+  url: string;
+}
+
 export interface ApiResponse<T> {
   statusCode: number | string;
   message: string;
@@ -21,6 +27,15 @@ export interface ApiResponse<T> {
 
 const getPayload = <T>(response: ApiResponse<T>): T | undefined => {
   return response.data ?? response.result;
+};
+
+const isVnPayResponse = (value: any): value is VnPayResponse => {
+  return Boolean(
+    value &&
+      typeof value.status === 'string' &&
+      typeof value.message === 'string' &&
+      typeof value.url === 'string'
+  );
 };
 
 class PaymentService {
@@ -73,6 +88,32 @@ class PaymentService {
       return payload;
     } catch (error) {
       console.error('Error creating payment:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Tạo URL thanh toán VNPay cho 1 khoản học phí
+   */
+  async createVnPayPaymentUrl(paymentId: number): Promise<VnPayResponse> {
+    try {
+      const response = await api.get<ApiResponse<VnPayResponse> | VnPayResponse>(
+        `/payment/create_payment/${paymentId}`
+      );
+
+      // Backend may return { status, message, url } directly or wrap inside ApiResponse.data/result
+      if (isVnPayResponse(response.data)) {
+        return response.data;
+      }
+
+      const payload = getPayload(response.data as ApiResponse<VnPayResponse>);
+      if (!payload || !isVnPayResponse(payload)) {
+        throw new Error('Create VNPay url payload is invalid');
+      }
+
+      return payload;
+    } catch (error) {
+      console.error('Error creating VNPay url:', error);
       throw error;
     }
   }

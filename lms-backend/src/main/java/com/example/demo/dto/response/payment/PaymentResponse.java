@@ -17,7 +17,7 @@ public class PaymentResponse {
     private String userId;
     private User user;
     private String name;
-    private Double amount;
+    private Long amount;
     private LocalDateTime createdAt;
     private Boolean complete;
     private String code;

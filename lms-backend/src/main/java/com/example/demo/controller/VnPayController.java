@@ -64,6 +64,7 @@ public class VnPayController {
         vnp_Params.put("vnp_IpAddr", VnPayConfig.getIpAddress(httpRequest));
         Calendar cld = Calendar.getInstance(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
         SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
+        formatter.setTimeZone(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
         String vnp_CreateDate = formatter.format(cld.getTime());
         vnp_Params.put("vnp_CreateDate", vnp_CreateDate);
         cld.add(Calendar.MINUTE, 15);
@@ -108,6 +109,8 @@ public class VnPayController {
         payDTO.setStatus("ok");
         payDTO.setMessage("success");
         payDTO.setUrl(paymentUrl);
+        System.out.println("CreateDate: " + vnp_CreateDate);
+        System.out.println("ExpireDate: " + vnp_ExpireDate);
         return new ApiResponse<VnPayDTO>(HttpStatus.OK, "Create payment url successfully", payDTO, null);
     }
 

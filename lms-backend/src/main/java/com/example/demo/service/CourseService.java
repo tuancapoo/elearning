@@ -95,6 +95,34 @@ public class CourseService {
         resultPaginationDTO.setResult(result);
         return resultPaginationDTO;
     }
+    public ResultPaginationDTO getAllCource(Pageable pageable,String nameCourse,String teacherName,String courseCode,String userMail) {
+        User user=userRepository.findByEmail(userMail).orElse(null);
+        Specification<Course> spec = (root, query, cb) -> {
+            Predicate predicate = cb.conjunction(); // bắt đầu với điều kiện luôn đúng
+            //Nếu Có filter
+            if (nameCourse != null && !nameCourse.isEmpty()) {
+                predicate = cb.and(predicate, cb.like(cb.lower(root.get("name")), "%" + nameCourse.toLowerCase() + "%"));
+            }
+            if (teacherName != null && !teacherName.isEmpty()) {
+                predicate = cb.and(predicate, cb.like(cb.lower(root.get("teacher").get("name")), "%" + teacherName.toLowerCase() + "%"));
+            }
+            if (courseCode != null && !courseCode.isEmpty()) {
+                predicate = cb.and(predicate, cb.like(cb.lower(root.get("code")), "%" + courseCode.toLowerCase() + "%"));
+            }
+            return predicate;
+        };
+        Page<Course> page= courseRepository.findAll(spec, pageable);
+        List<ReponseCourseDTO> result=page.getContent().stream().map(ReponseCourseDTO::fromCourse).collect(Collectors.toList());
+        ResultPaginationDTO resultPaginationDTO=new ResultPaginationDTO();
+        ResultPaginationDTO.Meta mt=new ResultPaginationDTO.Meta();
+        mt.setCurrentPage(page.getNumber());
+        mt.setPageSize(page.getSize());
+        mt.setTotalPages(page.getTotalPages());
+        mt.setTotalElements(page.getNumberOfElements());
+        resultPaginationDTO.setMeta(mt);
+        resultPaginationDTO.setResult(result);
+        return resultPaginationDTO;
+    }
     public ReponseDetailCourseDTO getCoursesDetail(Long courseId, String userMail) {
         User user=userRepository.findByEmail(userMail).orElse(null);
         Course course=courseRepository.findById(courseId).orElse(null);

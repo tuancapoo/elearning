@@ -48,6 +48,23 @@ public class CourseController {
         ApiResponse<ResultPaginationDTO> response=new ApiResponse<>(HttpStatus.OK,"get successful",paginationDTO,null);
         return ResponseEntity.ok().body(response);
     }
+    @GetMapping("/courses/all")
+    @SecurityRequirement(name = "BearerAuth")
+    @Operation(summary = "Get danh sách course cho cả teacher, student, admin luôn", description = "create a new user with the provided information")
+    public ResponseEntity<ApiResponse<ResultPaginationDTO>> getAllCourses(
+            @PageableDefault(size = 10,page=0,sort = "createdAt",direction = Sort.Direction.ASC) Pageable pageable,
+            @RequestParam(required = false) String courseName,
+            @RequestParam(required = false) String teacherName,
+            @RequestParam(required = false) String courseCode
+    ) {
+        String user = securityUtil.getCurrentUserLogin()
+                .orElseThrow(()-> new RuntimeException("User not found"));
+        ResultPaginationDTO paginationDTO=courseService.getAllCource(pageable,courseName,teacherName,courseCode,user);
+        ApiResponse<ResultPaginationDTO> response=new ApiResponse<>(HttpStatus.OK,"get successful",paginationDTO,null);
+        return ResponseEntity.ok().body(response);
+    }
+
+
     @GetMapping("/courses/{courseId}")
     @SecurityRequirement(name = "BearerAuth")
     @Operation(summary = "Get detail course cho cả teacher, student, admin luôn", description = "create a new user with the provided information")

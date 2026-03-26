@@ -92,4 +92,6 @@ public class User {
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     List<Submission> submissions;
+
+
 }

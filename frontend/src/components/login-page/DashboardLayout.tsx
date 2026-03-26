@@ -7,6 +7,7 @@ import {
   FileText, 
   MessageSquare, 
   BarChart3, 
+  DollarSign,
   UserCircle, 
   Users, 
   Settings,
@@ -43,8 +44,7 @@ export function DashboardLayout({ user, children, onLogout }: DashboardLayoutPro
         { id: 'dashboard', label: 'Tổng quan', icon: BarChart3, path: '/dashboard' },
         { id: 'courses', label: 'Lớp học của tôi', icon: BookOpen, path: '/courses' },
         { id: 'assignments', label: 'Bài tập', icon: FileText, path: '/assignments' },
-        { id: 'documents', label: 'Tài liệu', icon: FileText, path: '/documents' },
-        { id: 'discussions', label: 'Thảo luận', icon: MessageSquare, path: '/discussions' },
+        { id: 'payments', label: 'Học phí', icon: DollarSign, path: '/payments' },
         { id: 'reports', label: 'Báo cáo học tập', icon: BarChart3, path: '/reports' },
         { id: 'profile', label: 'Hồ sơ cá nhân', icon: UserCircle, path: '/profile' }
       ];

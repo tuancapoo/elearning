@@ -36,6 +36,8 @@ export const getStudentReport = async (): Promise<StudentReportData> => {
     const token = localStorage.getItem("token");
     const response = await api.get<ApiResponse<StudentReportData>>('/report/student/me', {
       baseURL: 'https://elearning-11561.onrender.com', // Override baseURL để bỏ /api
+        // baseURL: "http://localhost:8080",
+
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -56,6 +58,8 @@ export const getStudentCourseProgress = async (courseId: number): Promise<Course
     const token = localStorage.getItem("token");
     const response = await api.get<ApiResponse<CourseProgressData>>(`/report/student/course/${courseId}/me`, {
       baseURL: 'https://elearning-11561.onrender.com',
+      // baseURL: "http://localhost:8080",
+
       headers: {
         Authorization: `Bearer ${token}`,
       },
